@@ -1,0 +1,14 @@
+{% extends "main.html" %}
+
+{% block maincontent %}
+
+{% if failed %}
+
+    <strong>Nice try!</strong> 
+
+
+{%else%}
+	<a href="/signup">Create a new user</a>
+
+{% endif %}
+{% endblock %}

@@ -29,6 +29,20 @@ def user_required(handler):
 
   return check_login
 
+def admin_required(handler):
+  """
+    Decorator that checks if there's a user associated with the current session.
+    Will also fail if there's no session present.
+  """
+  def check_login(self, *args, **kwargs):
+    auth = self.auth.get_user_by_session()
+    if not auth or auth['role']!='admin':
+      self.redirect(self.uri_for('login'), abort=True)
+    else:
+      return handler(self, *args, **kwargs)
+
+  return check_login
+
 class BaseHandler(webapp2.RequestHandler):
   @webapp2.cached_property
   def auth(self):
@@ -105,6 +119,7 @@ class MainHandler(BaseHandler):
     self.render_template('home.html')
 
 class SignupHandler(BaseHandler):
+  @admin_required
   def get(self):
     self.render_template('signup.html')
 
@@ -114,12 +129,16 @@ class SignupHandler(BaseHandler):
     name = self.request.get('name')
     password = self.request.get('password')
     last_name = self.request.get('lastname')
+    department = self.request.get('department')
+    role = self.request.get('role')
+    logging.info('role of the student is %s' %role)
+
 
     unique_properties = ['email_address']
     user_data = self.user_model.create_user(user_name,
       unique_properties,
       email_address=email, name=name, password_raw=password,
-      last_name=last_name, verified=False)
+      last_name=last_name,department=department, role=role,verified=False)
     if not user_data[0]: #user_data is a tuple
       self.display_message('Unable to create user for email %s because of \
         duplicate keys %s' % (user_name, user_data[1]))
@@ -249,7 +268,17 @@ class LoginHandler(BaseHandler):
     try:
       u = self.auth.get_user_by_password(username, password, remember=True,
         save_session=True)
+      user_data = self.user
+      logging.info('user data  is %s' %user_data)
       self.display_message('Welcome %s' %u['name'] )
+      self.display_message('you are %s' %user_data.role)
+      if(user_data.role=='admin'):
+        self.redirect(self.uri_for('admin'))
+      if(user_data.role=='student'):
+        self.redirect(self.uri_for('student'))
+        #self.render_template('admin.html',False)
+      #if(u['role']=='student'):
+       #self.display_message('you are a student')
       #self.redirect(self.uri_for('home'))
 
     except (InvalidAuthIdError, InvalidPasswordError) as e:
@@ -264,6 +293,15 @@ class LoginHandler(BaseHandler):
     }
     self.render_template('login.html', params)
 
+class AdminHnadler(BaseHandler):
+  @user_required
+  def get(self):
+    self._serve_page()
+
+  def _serve_page(self, ):
+    #self.display_message(self.user)
+    self.render_template('admin.html')
+
 class LogoutHandler(BaseHandler):
   def get(self):
     self.auth.unset_session()
@@ -274,10 +312,27 @@ class AuthenticatedHandler(BaseHandler):
   def get(self):
     self.render_template('authenticated.html')
 
+class StudentHandler(BaseHandler):
+  @user_required
+  def get(self):
+    self.render_template('student/student.html')
+
+class StudentInfoHandler(BaseHandler):
+  @user_required
+  def get(self):
+    params = {
+    'user_data' : self.user
+    }
+    self.render_template('student/info.html', params)
+
+class CartHandler(BaseHandler):
+  @user_required
+  def get(self):
+    self.render_template('student/cart.html')
 config = {
   'webapp2_extras.auth': {
     'user_model': 'models.User',
-    'user_attributes': ['name']
+    'user_attributes': ['name','role']
   },
   'webapp2_extras.sessions': {
     'secret_key': 'YOUR_SECRET_KEY'
@@ -293,7 +348,11 @@ app = webapp2.WSGIApplication([
     webapp2.Route('/login', LoginHandler, name='login'),
     webapp2.Route('/logout', LogoutHandler, name='logout'),
     webapp2.Route('/forgot', ForgotPasswordHandler, name='forgot'),
-    webapp2.Route('/authenticated', AuthenticatedHandler, name='authenticated')
+    webapp2.Route('/authenticated', AuthenticatedHandler, name='authenticated'),
+    webapp2.Route('/admin', AdminHnadler, name='admin'),
+    webapp2.Route('/student', StudentHandler, name='student'),
+    webapp2.Route('/student/info', StudentInfoHandler),
+    webapp2.Route('/student/cart', CartHandler)
 ], debug=True, config=config)
 
 logging.getLogger().setLevel(logging.DEBUG)

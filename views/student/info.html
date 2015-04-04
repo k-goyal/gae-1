@@ -1,0 +1,9 @@
+{% extends "student.html" %}
+
+ {% block maincontent %}
+<p>{% autoescape off %}{{ user_data.name  }} {{user_data.lastname}} {{user_data.department}} {{user_data.email_address}} {% endautoescape %}
+ </p>
+
+
+    {% endblock %}
+
