@@ -8,6 +8,7 @@ from google.appengine.api import mail
 import logging
 import os.path
 import webapp2
+import models
 
 from webapp2_extras import auth
 from webapp2_extras import sessions
@@ -133,6 +134,10 @@ class SignupHandler(BaseHandler):
     role = self.request.get('role')
     logging.info('role of the student is %s' %role)
 
+    dep = models.Department.get_by_id(department)
+    if dep==None:
+      self.display_message('department does not exist, user not created')
+      return
 
     unique_properties = ['email_address']
     user_data = self.user_model.create_user(user_name,
@@ -145,6 +150,14 @@ class SignupHandler(BaseHandler):
       return
     
     user = user_data[1]
+    if(role=="student"):
+      stu = models.Student(student=user.key, department=department, credits=10, id=user_name)
+      stu.put()
+
+    if(role=="faculty"):
+      fac = models.Faculty(faculty=user.key, id=user_name)
+      fac.put()
+
     user_id = user.get_id()
 
     token = self.user_model.create_signup_token(user_id)
@@ -293,7 +306,7 @@ class LoginHandler(BaseHandler):
     }
     self.render_template('login.html', params)
 
-class AdminHnadler(BaseHandler):
+class AdminHandler(BaseHandler):
   @user_required
   def get(self):
     self._serve_page()
@@ -301,6 +314,30 @@ class AdminHnadler(BaseHandler):
   def _serve_page(self, ):
     #self.display_message(self.user)
     self.render_template('admin.html')
+
+class addDepartmentHandler(BaseHandler):
+  @admin_required
+  def get(self):
+    self.render_template('addDepartment.html')
+
+  def post(self):
+    dep_id = self.request.get('dep_id')
+    name = self.request.get('name')
+    hod = self.request.get('hod')
+
+    valid_hod  = models.Faculty.get_by_id(hod)
+    dep = models.Department.get_by_id(dep_id)
+    if valid_hod==None:
+      self.display_message("hod does not exist")
+    else:
+      if dep==None:
+        dep = self.models.Department(dep_id=dep_id, name=name, hod=valid_hod.key, id=dep_id)
+        dep.put()
+      else:
+        dep.name = name
+        dep.hod = valid_hod.key
+        dep.put()
+
 
 class LogoutHandler(BaseHandler):
   def get(self):
@@ -321,7 +358,8 @@ class StudentInfoHandler(BaseHandler):
   @user_required
   def get(self):
     params = {
-    'user_data' : self.user
+    'user_data' : self.user,
+    'student_data' : models.Student.get_by_id(self.user.email_address)
     }
     self.render_template('student/info.html', params)
 
@@ -349,10 +387,11 @@ app = webapp2.WSGIApplication([
     webapp2.Route('/logout', LogoutHandler, name='logout'),
     webapp2.Route('/forgot', ForgotPasswordHandler, name='forgot'),
     webapp2.Route('/authenticated', AuthenticatedHandler, name='authenticated'),
-    webapp2.Route('/admin', AdminHnadler, name='admin'),
+    webapp2.Route('/admin', AdminHandler, name='admin'),
     webapp2.Route('/student', StudentHandler, name='student'),
     webapp2.Route('/student/info', StudentInfoHandler),
-    webapp2.Route('/student/cart', CartHandler)
+    webapp2.Route('/student/cart', CartHandler),
+    webapp2.Route('/addDepartment', addDepartmentHandler)
 ], debug=True, config=config)
 
 logging.getLogger().setLevel(logging.DEBUG)

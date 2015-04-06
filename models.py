@@ -35,3 +35,30 @@ class User(webapp2_extras.appengine.auth.models.User):
         return user, timestamp
 
     return None, None
+
+
+
+class Faculty(ndb.Model):
+    """Models a  faculty with hod, courses, resume, webpage and a link to the user"""
+    faculty = ndb.KeyProperty(kind = User)
+    hod = ndb.BooleanProperty()
+    resume = ndb.BlobProperty()
+    webpage = ndb.BlobProperty()
+
+class Department(ndb.Model):
+  """Models a department with department id."""
+  dep_id = ndb.StringProperty()
+  name = ndb.StringProperty()
+  hod = ndb.KeyProperty(kind = Faculty)
+
+class Student(ndb.Model):
+  """Models a student"""
+  student = ndb.KeyProperty(kind = User)
+  department = ndb.StringProperty()
+  credits = ndb.FloatProperty()
+
+
+
+
+
+
