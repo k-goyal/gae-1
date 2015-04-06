@@ -132,7 +132,7 @@ class SignupHandler(BaseHandler):
     last_name = self.request.get('lastname')
     department = self.request.get('department')
     role = self.request.get('role')
-    logging.info('role of the student is %s' %role)
+    logging.info('role of the user is %s' %role)
 
     dep = models.Department.get_by_id(department)
     if dep==None:
